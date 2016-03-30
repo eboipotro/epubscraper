@@ -201,6 +201,7 @@ def postmaker(dmap, blogdir):
     mname = re.sub('-+', "-", re.sub('[_/ ]+', "-", dmap['title'])) + "-" + re.sub(' +', "-", dmap['type']) + "-" + re.sub(' +', "-", dmap['author'][0][0])
     filename = moddate + "-" + mname + ".markdown"
     permalink = "/library/" + mname + "/"
+    categories = dmap['subject'] + [dmap['type']]
     out = [
         filename,
         "---",
@@ -208,7 +209,7 @@ def postmaker(dmap, blogdir):
         "published: true",
         "title: " + "\"" + dmap['title'] + "\"",
         "tags: [" + arraymaker(dmap['author'] + dmap['translator']) + "]",
-        "categories: [\"" +  "\", \"".join(dmap['subject']) + dmap['type']+ "\"]",
+        "categories: [\"" +  "\", \"".join(categories) + "\"]",
         "img: \"" + dmap['cover'] + "\"",
         "type: \"" + dmap['type'] + "\""]
 
