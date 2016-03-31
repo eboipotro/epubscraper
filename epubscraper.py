@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import os
 import subprocess
 import xmltodict
 import re
 import json
-
+from zipfile import ZipFile
+from PIL import Image
 """
 Book subject and types data
 """
@@ -23,7 +23,6 @@ def imscrap (booklink, imagedir, imagename, imagelink, overwrite):
     Scrap Cover image from epub.
     """
     target = os.path.join(imagedir, imagename)
-    temporary = os.path.join(imagedir, namef(imagelink))
     if overwrite == True:
         try:
             os.remove(target)
@@ -32,9 +31,11 @@ def imscrap (booklink, imagedir, imagename, imagelink, overwrite):
     if os.path.isfile(target) == True:
         return "/images/" + imagename
     else:
-        subprocess.call(["unzip", "-j", booklink, imagelink, "-d", imagedir])
-        subprocess.call(["convert", "-resize", "225x318", temporary, target])
-        os.remove(temporary)
+        with ZipFile(booklink) as book:
+            with book.open(imagelink) as cover:
+                img = Image.open(cover)
+                img = img.resize((225, 318), Image.ANTIALIAS)
+                img.save(target)
         return "/images/" + imagename
     
 def link_parser(dstring):
@@ -51,7 +52,9 @@ def book_keeper (booklink):
     """
     Book cataloger based on metadata
     """
-    meta = xmltodict.parse(subprocess.check_output(["unzip", "-p", booklink, "OEBPS/content.opf"]))['package']['metadata']
+    with ZipFile(booklink) as book:
+        with book.open('OEBPS/content.opf') as cont:
+            meta = xmltodict.parse(cont.read())['package']['metadata']
     catalog = {'author': [], 'publisher': [], 'translator': [], 'editor': [], 'illustrator': [], 'subject': []}
     for key, val in meta.items():
         if key == 'dc:title':
@@ -137,12 +140,12 @@ def file_linker(path, link, files, imagedir, overwrite):
     out = []
     for f in files:
         meta = book_keeper(f)
-        filepath = re.sub(path, '', f)
+        filepath = re.sub(path, '', f).strip("/")
         imagelink = meta['cover']
         imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", meta['type']) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
         image = imscrap(f, imagedir, imgname, imagelink, overwrite)
         meta['cover'] = image
-        meta['link'] = link + os.path.join("/raw/master/", filepath)
+        meta['link'] = os.path.join(link, "raw/master", filepath)
         out.append(meta)
     return out
 
@@ -152,11 +155,14 @@ def mapmaker(path, outdir, overwrite):
     """
     imagedir = os.path.join(outdir, "images")
     authorfile = os.path.join(outdir, "author")
-    metadata = subprocess.check_output(["git", "remote", "-v"], cwd=path).decode("utf-8").split("\n")[0].split("\t")[1][0:-12]
-    if "https" in metadata:
-        link = metadata
-    else:
-        link = metadata.replace('git@github.com:', 'https://github.com/')
+    with open(os.path.join(path, '.git/config')) as con:
+        for line in con:
+            if 'url' in line:
+                metadata = line.split('=')[-1].strip()
+        if "https" in metadata:
+            link = metadata
+        else:
+            link = metadata.replace('git@github.com:', 'https://github.com/').replace('.git', '')
     dfiles = []
     for p, subdirs, files in os.walk(path):
         for f in [f for f in files if f.endswith(".epub")]:
