@@ -142,7 +142,7 @@ def file_linker(path, link, files, imagedir, overwrite):
         imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", meta['type']) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
         image = imscrap(f, imagedir, imgname, imagelink, overwrite)
         meta['cover'] = image
-        meta['link'] = link + "/raw/master" + filepath
+        meta['link'] = link + os.path.join("/raw/master/", filepath)
         out.append(meta)
     return out
 
