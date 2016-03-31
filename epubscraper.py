@@ -7,6 +7,9 @@ import re
 import json
 from zipfile import ZipFile
 from PIL import Image
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 """
 Book subject and types data
 """
