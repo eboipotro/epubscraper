@@ -14,7 +14,7 @@ Book subject and types data
 
 typelib = ["উপন্যাস", "বড়গল্প", "ছোটগল্প", "কবিতা", "প্রবন্ধ", "নাটক", "গান", "সমগ্র"]
 
-sublib = {"Absurd": "স্বপ্নবাস্তবতা", "Action": "দুঃসাহসিক", "Adventure": "দুঃসাহসিক", "Autobiography": "আত্নজীবনী", "Biography": "জীবনী", "Children's literature": "শিশুসাহিত্য", "Classic": "চিরায়ত সাহিত্য", "Collection": "সমগ্র", "Comedy": "রম্যরচনা", "Crime": "অপরাধ", "Detective": "গোয়েন্দা", "Drama": "নাটক", "Essay": "প্রবন্ধ", "Fable": "রূপকথা", "Fairy tale": "রূপকথা", "Fanciful": "স্বপ্নবাস্তবতা", "Fantasy": "রূপকথা", "Folklore": "লোকসাহিত্য", "Historical fiction": "ঐতিহাসিক উপন্যাস", "History": "ইতিহাস", "Horror": "ভৌতিক", "Humour": "রস", "Legend": "উপ্যাখান", "Magical realism": "জাদুবাস্তবতা", "Memoir": "স্মৃতিচারণ", "Mystery": "রহস্য", "Mythology": "পুরাণ", "Novel": "উপন্যাস", "Novella": "বড়গল্প", "Philosophy": "দর্শন", "Play": "নাটক", "Poem": "কবিতা", "Politics": "রাজনীতি", "Realistic fiction": "বাস্তবিক", "Religion": "ধর্ম", "Romance": "প্রেম", "Satire": "ব্যাঙ্গরচনা", "Science": "বিজ্ঞান", "Science fiction": "কল্পবিজ্ঞান", "Song": "গান", "Speech": "ভাষণ", "Story": "ছোটগল্প", "Short story": "ছোটগল্প", "Surreal": "স্বপ্নবাস্তবতা", "Travel": "ভ্রমণকাহিনী"}
+sublib = {"Absurd": "স্বপ্নবাস্তবতা", "Action": "দুঃসাহসিক", "Adventure": "দুঃসাহসিক", "Autobiography": "আত্নজীবনী", "Biography": "জীবনী", "Children's literature": "শিশুসাহিত্য", "Classic": "চিরায়ত সাহিত্য", "Collection": "সমগ্র", "Comedy": "রম্যরচনা", "Crime": "অপরাধ", "Detective": "গোয়েন্দা", "Drama": "নাটক", "Essay": "প্রবন্ধ", "Fable": "রূপকথা", "Fairy tale": "রূপকথা", "Fanciful": "স্বপ্নবাস্তবতা", "Fantasy": "রূপকথা", "Folklore": "লোকসাহিত্য", "Historical fiction": "ঐতিহাসিক উপন্যাস", "History": "ইতিহাস", "Horror": "ভৌতিক", "Humour": "রস", "Legend": "উপ্যাখান", "Magical realism": "জাদুবাস্তবতা", "Memoir": "স্মৃতিচারণ", "Mystery": "রহস্য", "Mythology": "পুরাণ", "Novel": "উপন্যাস", "Novella": "বড়গল্প", "Philosophy": "দর্শন", "Play": "নাটক", "Poem": "কবিতা", "Politics": "রাজনীতি", "Realistic fiction": "বাস্তবিক", "Religion": "ধর্ম", "Romance": "প্রেম", "Satire": "ব্যাঙ্গরচনা", "Science": "বিজ্ঞান", "Science fiction": "কল্পবিজ্ঞান", "Song": "গান", "Speech": "ভাষণ", "Story": "ছোটগল্প", "Short story": "ছোটগল্প", "Surreal": "স্বপ্নবাস্তবতা", "Travel": "ভ্রমণকাহিনী", "Dance-drama": "নৃত্যনাট্য"}
 
 def namef (string):
     return string.split('/')[-1]
@@ -143,7 +143,14 @@ def file_linker(path, link, files, imagedir, overwrite):
         meta = book_keeper(f)
         filepath = re.sub(path, '', f).strip("/")
         imagelink = meta['cover']
-        imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", meta['type']) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
+        if meta['type'] == 'নাটক':
+            if 'নৃত্যনাট্য' in meta['subject']:
+                ptype = "নাটক-নৃত্যনাট্য"
+            else:
+                ptype = "নাটক"
+        else:
+            ptype = meta['type']
+        imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", ptype) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
         image = imscrap(f, imagedir, imgname, imagelink, overwrite)
         meta['cover'] = image
         meta['link'] = os.path.join(link, "raw/master", filepath)
@@ -205,7 +212,14 @@ def postmaker(dmap, blogdir):
         pubdate = dmap['pubdate']
     except:
         pubdate = dmap['moddate']
-    mname = re.sub('-+', "-", re.sub('[_/ ]+', "-", dmap['title'])) + "-" + re.sub(' +', "-", dmap['type']) + "-" + re.sub(' +', "-", dmap['author'][0][0])
+    if dmap['type'] == 'নাটক':
+        if 'নৃত্যনাট্য' in dmap['subject']:
+            ptype = "নাটক-নৃত্যনাট্য"
+        else:
+            ptype = "নাটক"
+    else:
+        ptype = dmap['type']
+    mname = re.sub('-+', "-", re.sub('[_/ ]+', "-", dmap['title'])) + "-" + re.sub(' +', "-", ptype) + "-" + re.sub(' +', "-", dmap['author'][0][0])
     filename = moddate + "-" + mname + ".markdown"
     permalink = "/library/" + mname + "/"
     categories = dmap['subject'] + [dmap['type']]
