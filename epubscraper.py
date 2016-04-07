@@ -64,11 +64,19 @@ def book_keeper (booklink):
         elif key == 'dc:creator':
             if isinstance(val, list):
                 for v in val:
-                    if v['@opf:role'] == 'aut':
-                        catalog['author'] == catalog['author'].append(link_parser(v['#text']))
+                    try:
+                        if v['@opf:role'] == 'aut':
+                            catalog['author'] == catalog['author'].append(link_parser(v['#text']))
+                    except:
+                        if v['@id'] == 'cre':
+                            catalog['author'] == catalog['author'].append(link_parser(v['#text']))
             else:
-                if val['@opf:role'] == 'aut':
-                    catalog['author'] == catalog['author'].append(link_parser(val['#text']))
+                try:
+                    if val['@opf:role'] == 'aut':
+                        catalog['author'] == catalog['author'].append(link_parser(val['#text']))
+                except:
+                    if val['@id'] == 'cre':
+                        catalog['author'] == catalog['author'].append(link_parser(val['#text']))
         elif key == 'dc:language':
             catalog['language'] = val
         elif key == 'dc:description':
@@ -115,15 +123,28 @@ def book_keeper (booklink):
                     elif event == 'modification':
                         catalog['moddate'] = v['#text']
             else:
-                event = val['@opf:event']
-                if event == 'publication' or event == 'creation':
-                    catalog['pubdate'] = val['#text']
-                elif event == 'modification':
-                    catalog['moddate'] = val['#text']
+                try:
+                    event = val['@opf:event']
+                    if event == 'publication' or event == 'creation':
+                        catalog['pubdate'] = val['#text']
+                    elif event == 'modification':
+                        catalog['moddate'] = val['#text']
+                except:
+                    try:
+                        catalog['pubdate'] = val
+                    except:
+                        pass
         elif key == 'meta':
             for v in val:
-                if v['@name'] == 'cover':
-                    catalog['cover'] = "OEBPS/Images/" + v['@content']
+                try:
+                    if v['@name'] == 'cover':
+                        catalog['cover'] = "OEBPS/Images/" + v['@content']
+                except:
+                    try:
+                        if v['@property'] == 'dcterms:modified':
+                            catalog['moddate'] = v['#text'][:10]
+                    except:
+                        pass
     subject = catalog['subject']
     precount = len(subject)
     for s in subject:
