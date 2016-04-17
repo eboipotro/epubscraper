@@ -55,28 +55,83 @@ def book_keeper (booklink):
     """
     with ZipFile(booklink) as book:
         with book.open('OEBPS/content.opf') as cont:
-            meta = xmltodict.parse(cont.read())['package']['metadata']
+            data = xmltodict.parse(cont.read())['package']
+    meta = data['metadata']
+    version = data['@version'][0]
     catalog = {'author': [], 'publisher': [], 'translator': [], 'editor': [], 'illustrator': [], 'subject': []}
     for key, val in meta.items():
         if key == 'dc:title':
             catalog['title'] = val
             print (catalog['title'])
         elif key == 'dc:creator':
-            if isinstance(val, list):
-                for v in val:
-                    try:
+            if version == '2':
+                if isinstance(val, list):
+                    for v in val:
                         if v['@opf:role'] == 'aut':
-                            catalog['author'] == catalog['author'].append(link_parser(v['#text']))
-                    except:
-                        if v['@id'] == 'cre':
-                            catalog['author'] == catalog['author'].append(link_parser(v['#text']))
-            else:
-                try:
+                            catalog['author'].append(link_parser(v['#text']))
+                else:
                     if val['@opf:role'] == 'aut':
-                        catalog['author'] == catalog['author'].append(link_parser(val['#text']))
-                except:
-                    if val['@id'] == 'cre':
-                        catalog['author'] == catalog['author'].append(link_parser(val['#text']))
+                        catalog['author'].append(link_parser(val['#text']))
+            elif version == '3':
+                if isinstance(val, list):
+                    metas = {}
+                    for m in meta['meta']:
+                        try:
+                            if m['#text'] in ['aut', 'ill', 'edt', 'trl', 'pbl']:
+                                if m['@refines'][0] == "#":
+                                    res = m['@refines'][1:]
+                                else:
+                                    res = m['@refines']
+                                metas[res] = m['#text']
+                        except:
+                            pass
+                    vals = {}
+                    for v in val:
+                        if v['@id'][0] == "#":
+                            res = v['@id'][1:]
+                        else:
+                            res = v['@id']
+                        vals[res] = v['#text']
+                    for k, v in metas.items():
+                        if v == 'aut':
+                            catalog['author'].append(link_parser(vals[k]))
+                        elif v == 'trl':
+                            catalog['translator'].append(link_parser(vals[k]))
+                        elif v == 'edt':
+                            catalog['editor'].append(link_parser(vals[k]))
+                        elif v == 'ill':
+                            catalog['illustrator'].append(link_parser(vals[k]))
+                        elif v == 'pbl':
+                            catalog['publisher'].append(link_parser(vals[k]))
+                else:
+                    metas = {}
+                    for m in meta['meta']:
+                        try:
+                            if m['#text'] in ['aut', 'ill', 'edt', 'trl', 'pbl']:
+                                if m['@refines'][0] == "#":
+                                    res = m['@refines'][1:]
+                                else:
+                                    res = m['@refines']
+                                metas[res] = m['#text']
+                        except:
+                            pass
+                    vals = {}
+                    if val['@id'][0] == "#":
+                        res = val['@id'][1:]
+                    else:
+                        res = val['@id']
+                    vals[res] = v['#text']
+                    for k, v in metas.items():
+                        if v == 'aut':
+                            catalog['author'].append(link_parser(vals[k]))
+                        elif v == 'trl':
+                            catalog['translator'].append(link_parser(vals[k]))
+                        elif v == 'edt':
+                            catalog['editor'].append(link_parser(vals[k]))
+                        elif v == 'ill':
+                            catalog['illustrator'].append(link_parser(vals[k]))
+                        elif v == 'pbl':
+                            catalog['publisher'].append(link_parser(vals[k]))
         elif key == 'dc:language':
             catalog['language'] = val
         elif key == 'dc:description':
@@ -84,16 +139,16 @@ def book_keeper (booklink):
         elif key == 'dc:publisher':
             if isinstance(val, list):
                 for v in val:
-                    catalog['publisher'] == catalog['publisher'].append(link_parser(v))
+                    catalog['publisher'].append(link_parser(v))
             else:
-                catalog['publisher'] == catalog['publisher'].append(link_parser(val))
+                catalog['publisher'].append(link_parser(val))
         elif key == 'dc:type' or key == 'dc:subject':
             try:
                 if isinstance(val, list):
                     for v in val:
-                        catalog['subject'] == catalog['subject'].append(sublib[v.capitalize()])
+                        catalog['subject'].append(sublib[v.capitalize()])
                 else:
-                    catalog['subject'] == catalog['subject'].append(sublib[val.capitalize()])
+                    catalog['subject'].append(sublib[val.capitalize()])
             except:
                 pass
         elif key == 'dc:contributor':
@@ -101,19 +156,19 @@ def book_keeper (booklink):
                 for v in val:
                     role = v['@opf:role']
                     if role == 'trl':
-                        catalog['translator'] == catalog['translator'].append(link_parser(v['#text']))
+                        catalog['translator'].append(link_parser(v['#text']))
                     elif role == 'edt':
-                        catalog['editor'] == catalog['editor'].append(link_parser(v['#text']))
+                        catalog['editor'].append(link_parser(v['#text']))
                     elif role == 'ill':
-                        catalog['illustrator'] == catalog['illustrator'].append(link_parser(v['#text']))
+                        catalog['illustrator'].append(link_parser(v['#text']))
             else:        
                 role = val['@opf:role']
                 if role == 'trl':
-                    catalog['translator'] == catalog['translator'].append(link_parser(val['#text']))
+                    catalog['translator'].append(link_parser(val['#text']))
                 elif role == 'edt':
-                    catalog['editor'] == catalog['editor'].append(link_parser(val['#text']))
+                    catalog['editor'].append(link_parser(val['#text']))
                 elif role == 'ill':
-                    catalog['illustrator'] == catalog['illustrator'].append(link_parser(val['#text']))
+                    catalog['illustrator'].append(link_parser(val['#text']))
         elif key == 'dc:date':
             if isinstance(val, list):
                 for v in val:
@@ -268,7 +323,7 @@ def postmaker(dmap, blogdir):
     if len(dmap['translator']) > 0:
         out.append("translators: \n" + authmaker(dmap['translator'], blogdir, "translator"))
     if len(dmap['illustrator']) > 0:
-        out.append("illustrators: \n" + arraymaker(dmap['translator'], "editor"))
+        out.append("illustrators: \n" + arraymaker(dmap['illustrator'], "illustrator"))
     if len(dmap['editor']) > 0:
         out.append("editors: \n" + arraymaker(dmap['editor'], "editor"))
     try:
