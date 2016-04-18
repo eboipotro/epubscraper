@@ -120,7 +120,7 @@ def book_keeper (booklink):
                         res = val['@id'][1:]
                     else:
                         res = val['@id']
-                    vals[res] = v['#text']
+                    vals[res] = val['#text']
                     for k, v in metas.items():
                         if v == 'aut':
                             catalog['author'].append(link_parser(vals[k]))
@@ -170,25 +170,28 @@ def book_keeper (booklink):
                 elif role == 'ill':
                     catalog['illustrator'].append(link_parser(val['#text']))
         elif key == 'dc:date':
-            if isinstance(val, list):
-                for v in val:
-                    event = v['@opf:event']
-                    if event == 'publication' or event == 'creation':
-                        catalog['pubdate'] = v['#text']
-                    elif event == 'modification':
-                        catalog['moddate'] = v['#text']
+            if version == '3':
+                catalog['pubdate'] = val
             else:
-                try:
-                    event = val['@opf:event']
-                    if event == 'publication' or event == 'creation':
-                        catalog['pubdate'] = val['#text']
-                    elif event == 'modification':
-                        catalog['moddate'] = val['#text']
-                except:
+                if isinstance(val, list):
+                    for v in val:
+                        event = v['@opf:event']
+                        if event == 'publication' or event == 'creation':
+                            catalog['pubdate'] = v['#text']
+                        elif event == 'modification':
+                            catalog['moddate'] = v['#text']
+                else:
                     try:
-                        catalog['pubdate'] = val
+                        event = val['@opf:event']
+                        if event == 'publication' or event == 'creation':
+                            catalog['pubdate'] = val['#text']
+                        elif event == 'modification':
+                            catalog['moddate'] = val['#text']
                     except:
-                        pass
+                        try:
+                            catalog['pubdate'] = val
+                        except:
+                            pass
         elif key == 'meta':
             for v in val:
                 try:
