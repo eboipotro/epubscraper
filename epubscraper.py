@@ -7,6 +7,8 @@ import re
 import json
 from zipfile import ZipFile
 from PIL import Image
+from multiprocessing import Pool
+from functools import partial
 
 """
 Book subject and types data
@@ -62,7 +64,6 @@ def book_keeper (booklink):
     for key, val in meta.items():
         if key == 'dc:title':
             catalog['title'] = val
-            print (catalog['title'])
         elif key == 'dc:creator':
             if version == '2':
                 if isinstance(val, list):
@@ -213,49 +214,6 @@ def book_keeper (booklink):
         catalog['type'] = 'অন্যান্য'
     return catalog
 
-def file_linker(path, link, files, imagedir, overwrite):
-    """
-    Add file and image links.
-    """
-    out = []
-    for f in files:
-        meta = book_keeper(f)
-        filepath = re.sub(path, '', f).strip("/")
-        imagelink = meta['cover']
-        if meta['type'] == 'নাটক':
-            if 'নৃত্যনাট্য' in meta['subject']:
-                ptype = "নাটক-নৃত্যনাট্য"
-            else:
-                ptype = "নাটক"
-        else:
-            ptype = meta['type']
-        imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", ptype) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
-        image = imscrap(f, imagedir, imgname, imagelink, overwrite)
-        meta['cover'] = image
-        meta['link'] = os.path.join(link, "raw/master", filepath)
-        out.append(meta)
-    return out
-
-def mapmaker(path, outdir, overwrite):
-    """
-    Get data of a whole repo.
-    """
-    imagedir = os.path.join(outdir, "images")
-    authorfile = os.path.join(outdir, "author")
-    with open(os.path.join(path, '.git/config')) as con:
-        for line in con:
-            if 'url' in line:
-                metadata = line.split('=')[-1].strip()
-        if "https" in metadata:
-            link = metadata
-        else:
-            link = metadata.replace('git@github.com:', 'https://github.com/').replace('.git', '')
-    dfiles = []
-    for p, subdirs, files in os.walk(path):
-        for f in [f for f in files if f.endswith(".epub")]:
-            dfiles.append(os.path.join(p, f))
-    return file_linker(path, link, dfiles, imagedir, overwrite)
-
 def authmaker(nestedvec, blogdir, name):
     items = []
     for author in nestedvec:
@@ -278,7 +236,27 @@ def arraymaker(nestedvec, name=False):
         for i in nestedvec:
             dvec.append(" - " + name + ": \"" + i[0] + "\"\n   link: \"" + i[-1] + "\"")
         return "\n".join(dvec)
-    
+
+def autgen(path, blogdir):
+    """
+    Author page creator
+    """
+    try:
+        with open(os.path.join(path, "author")) as dfile:
+            autdata = json.load(dfile)
+            for aut in autdata:
+                with open(os.path.join(blogdir, "_authors", aut['name'].replace(" ", "-")) + ".markdown", 'w') as autfile:
+                    autfile.truncate()
+                    dstr = "---\nlayout: author\ntitle: \"" + aut['name'] + "\"\nautlink: \"" + aut['link'] + "\"\npermalink: /author/" + aut['name'].replace(" ", "-") + "/\n"
+                    try:
+                        dstr = dstr + "img: \"" + aut['image'] + "\"\n"
+                    except:
+                        pass
+                    dstr = dstr + "---\n" + aut['description']
+                    autfile.write(dstr)
+    except:
+        pass
+
 def postmaker(dmap, blogdir):
     """
     Book page data creator
@@ -337,46 +315,90 @@ def postmaker(dmap, blogdir):
     out.append("---")
     return out
 
-def printer(outdir, blogdir, dmap):
+# def printer(outdir, blogdir, dmap):
+#     """
+#     Book page creator
+#     """
+#     data = postmaker(dmap, blogdir)
+#     dname = data[0][11:]
+#     for f in os.listdir(outdir):
+#         if re.search(dname, f):
+#             try:
+#                 os.remove(os.path.join(outdir, f))
+#             except:
+#                 pass
+#     with open(os.path.join(outdir, data[0]), 'w') as dfile:
+#         for line in data[1:]:
+#             dfile.write(line + "\n")
+
+def file_linker(dfile, path, blogdir, postdir, posts, link, imagedir, overwrite):
     """
-    Book page creator
+    Add file and image links.
     """
-    data = postmaker(dmap, blogdir)
+    meta = book_keeper(dfile)
+    filepath = re.sub(path, '', dfile).strip("/")
+    imagelink = meta['cover']
+    if meta['type'] == 'নাটক':
+        if 'নৃত্যনাট্য' in meta['subject']:
+            ptype = "নাটক-নৃত্যনাট্য"
+        else:
+            ptype = "নাটক"
+    else:
+        ptype = meta['type']
+    imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", ptype) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
+    image = imscrap(dfile, imagedir, imgname, imagelink, overwrite)
+    meta['cover'] = image
+    meta['link'] = os.path.join(link, "raw/master", filepath)
+    data = postmaker(meta, blogdir)
     dname = data[0][11:]
-    for f in os.listdir(outdir):
-        if re.search(dname, f):
-            os.remove(os.path.join(outdir, f))
-    with open(os.path.join(outdir, data[0]), 'w') as dfile:
+    dwritefile = os.path.join(postdir, data[0])
+    while os.path.isfile(dwritefile) == False:
+        dwrite =  open(dwritefile, 'w')
+        dwrite.truncate()
         for line in data[1:]:
-            dfile.write(line + "\n")
+            dwrite.write(line + "\n")
+        dwrite.close()
+    tposts = []
+    for tp in posts:
+        if tp.split("/")[-1][11:] == dname:
+            tposts.append(tp)
+    tposts = sorted(tposts)
+    if len(tposts) > 1:
+        for tp in tposts[:-1]:
+            os.remove(tp)
 
-def autgen(path, blogdir):
+def mapmaker(path, outdir, overwrite, ps):
     """
-    Author page creator
+    Get data of a whole repo.
     """
-    try:
-        with open(os.path.join(path, "author")) as dfile:
-            autdata = json.load(dfile)
-            for aut in autdata:
-                with open(os.path.join(blogdir, "_authors", aut['name'].replace(" ", "-")) + ".markdown", 'w') as autfile:
-                    autfile.truncate()
-                    dstr = "---\nlayout: author\ntitle: \"" + aut['name'] + "\"\nautlink: \"" + aut['link'] + "\"\npermalink: /author/" + aut['name'].replace(" ", "-") + "/\n"
-                    try:
-                        dstr = dstr + "img: \"" + aut['image'] + "\"\n"
-                    except:
-                        pass
-                    dstr = dstr + "---\n" + aut['description']
-                    autfile.write(dstr)
-    except:
-        pass
+    imagedir = os.path.join(outdir, "images")
+    authorfile = os.path.join(outdir, "author")
+    postdir = os.path.join(outdir, "_posts")
+    with open(os.path.join(path, '.git/config')) as con:
+        for line in con:
+            if 'url' in line:
+                metadata = line.split('=')[-1].strip()
+        if "https" in metadata:
+            link = metadata
+        else:
+            link = metadata.replace('git@github.com:', 'https://github.com/').replace('.git', '')
+    dfiles = []
+    for p, subdirs, files in os.walk(path):
+        for f in [f for f in files if f.endswith(".epub")]:
+            dfiles.append(os.path.join(p, f))
+    posts = []
+    for p, subdirs, files in os.walk(postdir):
+        for f in [f for f in files if f.endswith(".markdown")]:
+            posts.append(os.path.join(p, f))
+    partial_file_linker = partial(file_linker, path=path, blogdir=outdir, postdir=postdir, posts=posts, link=link, imagedir=imagedir, overwrite=overwrite)
+    with Pool(processes=ps) as pool:
+        pool.map(partial_file_linker, dfiles)
+    print(len(dfiles))
 
-
-def postgen(path, blogdir, overwrite=False):
+def postgen(path, blogdir, overwrite=False, ps=8):
     """
     Viola! Do everything!
     """
     autgen(path, blogdir)
-    data = mapmaker(path, blogdir, overwrite)
-    postdir = os.path.join(blogdir, "_posts")
-    for d in data:
-        printer(postdir, blogdir, d)
+    mapmaker(path, blogdir, overwrite, ps)
+    
