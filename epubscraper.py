@@ -11,7 +11,6 @@ from multiprocessing import Pool
 from functools import partial
 from time import time
 from itertools import groupby
-import configparser
 """
 Book subject and types data
 """
