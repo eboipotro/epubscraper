@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='epubscraper',
-    version='3.0.0',
+    version='3.2.2',
     description='Post generator for eboipotro.github.io',
     author='Utsob Roy',
     author_email='uroybd@gmail.com',

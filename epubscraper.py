@@ -3,20 +3,21 @@
 import os
 import subprocess
 import xmltodict
-import re
+from re import sub, search
 import json
 from zipfile import ZipFile
 from PIL import Image
 from multiprocessing import Pool
 from functools import partial
-
+from time import time
+from itertools import groupby
+import configparser
 """
 Book subject and types data
 """
+typel = ["উপন্যাস", "বড়গল্প", "ছোটগল্প", "কবিতা", "প্রবন্ধ", "নাটক", "গান", "সমগ্র"]
 
-typelib = ["উপন্যাস", "বড়গল্প", "ছোটগল্প", "কবিতা", "প্রবন্ধ", "নাটক", "গান", "সমগ্র"]
-
-sublib = {"Absurd": "স্বপ্নবাস্তবতা", "Action": "দুঃসাহসিক", "Adventure": "দুঃসাহসিক", "Autobiography": "আত্নজীবনী", "Biography": "জীবনী", "Children's literature": "শিশুসাহিত্য", "Classic": "চিরায়ত সাহিত্য", "Collection": "সমগ্র", "Comedy": "রম্যরচনা", "Crime": "অপরাধ", "Detective": "গোয়েন্দা", "Drama": "নাটক", "Epic": "মহাকাব্য", "Essay": "প্রবন্ধ", "Fable": "রূপকথা", "Fairy tale": "রূপকথা", "Fanciful": "স্বপ্নবাস্তবতা", "Fantasy": "রূপকথা", "Folklore": "লোকসাহিত্য", "Historical fiction": "ঐতিহাসিক উপন্যাস", "History": "ইতিহাস", "Horror": "ভৌতিক", "Humour": "রস", "Legend": "উপ্যাখান", "Magical realism": "জাদুবাস্তবতা", "Memoir": "স্মৃতিচারণ", "Mystery": "রহস্য", "Mythology": "পুরাণ", "Novel": "উপন্যাস", "Novella": "বড়গল্প", "Philosophy": "দর্শন", "Play": "নাটক", "Poem": "কবিতা", "Politics": "রাজনীতি", "Realistic fiction": "বাস্তবিক", "Religion": "ধর্ম", "Romance": "প্রেম", "Satire": "ব্যাঙ্গরচনা", "Science": "বিজ্ঞান", "Science fiction": "কল্পবিজ্ঞান", "Song": "গান", "Speech": "ভাষণ", "Story": "ছোটগল্প", "Short story": "ছোটগল্প", "Surreal": "স্বপ্নবাস্তবতা", "Travel": "ভ্রমণকাহিনী", "Dance-drama": "নৃত্যনাট্য"}
+subl = {"Absurd": "স্বপ্নবাস্তবতা", "Action": "দুঃসাহসিক", "Adventure": "দুঃসাহসিক", "Autobiography": "আত্নজীবনী", "Biography": "জীবনী", "Children's literature": "শিশুসাহিত্য", "Classic": "চিরায়ত সাহিত্য", "Collection": "সমগ্র", "Comedy": "রম্যরচনা", "Crime": "অপরাধ", "Detective": "গোয়েন্দা", "Drama": "নাটক", "Epic": "মহাকাব্য", "Essay": "প্রবন্ধ", "Fable": "রূপকথা", "Fairy tale": "রূপকথা", "Fanciful": "স্বপ্নবাস্তবতা", "Fantasy": "রূপকথা", "Folklore": "লোকসাহিত্য", "Historical fiction": "ঐতিহাসিক উপন্যাস", "History": "ইতিহাস", "Horror": "ভৌতিক", "Humour": "রস", "Legend": "উপ্যাখান", "Magical realism": "জাদুবাস্তবতা", "Memoir": "স্মৃতিচারণ", "Mystery": "রহস্য", "Mythology": "পুরাণ", "Novel": "উপন্যাস", "Novella": "বড়গল্প", "Philosophy": "দর্শন", "Play": "নাটক", "Poem": "কবিতা", "Politics": "রাজনীতি", "Realistic fiction": "বাস্তবিক", "Religion": "ধর্ম", "Romance": "প্রেম", "Satire": "ব্যাঙ্গরচনা", "Science": "বিজ্ঞান", "Science fiction": "কল্পবিজ্ঞান", "Song": "গান", "Speech": "ভাষণ", "Story": "ছোটগল্প", "Short story": "ছোটগল্প", "Surreal": "স্বপ্নবাস্তবতা", "Travel": "ভ্রমণকাহিনী", "Dance-drama": "নৃত্যনাট্য"}
 
 def namef (string):
     return string.split('/')[-1]
@@ -276,7 +277,7 @@ def postmaker(dmap, blogdir):
             ptype = "নাটক"
     else:
         ptype = dmap['type']
-    mname = re.sub('-+', "-", re.sub('[_/ ]+', "-", dmap['title'])) + "-" + re.sub(' +', "-", ptype) + "-" + re.sub(' +', "-", dmap['author'][0][0])
+    mname = sub('-+', "-", sub('[_/ ]+', "-", dmap['title'])) + "-" + sub(' +', "-", ptype) + "-" + sub(' +', "-", dmap['author'][0][0])
     filename = moddate + "-" + mname + ".markdown"
     permalink = "/library/" + mname + "/"
     categories = dmap['subject'] + [dmap['type']]
@@ -315,28 +316,12 @@ def postmaker(dmap, blogdir):
     out.append("---")
     return out
 
-# def printer(outdir, blogdir, dmap):
-#     """
-#     Book page creator
-#     """
-#     data = postmaker(dmap, blogdir)
-#     dname = data[0][11:]
-#     for f in os.listdir(outdir):
-#         if re.search(dname, f):
-#             try:
-#                 os.remove(os.path.join(outdir, f))
-#             except:
-#                 pass
-#     with open(os.path.join(outdir, data[0]), 'w') as dfile:
-#         for line in data[1:]:
-#             dfile.write(line + "\n")
-
-def file_linker(dfile, path, blogdir, postdir, posts, link, imagedir, overwrite):
+def printer(dfile, path, blogdir, postdir, posts, link, imagedir, overwrite):
     """
     Add file and image links.
     """
     meta = book_keeper(dfile)
-    filepath = re.sub(path, '', dfile).strip("/")
+    filepath = sub(path, '', dfile).strip("/")
     imagelink = meta['cover']
     if meta['type'] == 'নাটক':
         if 'নৃত্যনাট্য' in meta['subject']:
@@ -345,32 +330,26 @@ def file_linker(dfile, path, blogdir, postdir, posts, link, imagedir, overwrite)
             ptype = "নাটক"
     else:
         ptype = meta['type']
-    imgname = re.sub('-+', "-", re.sub('[_/ ]+', "-", meta['title'])) + "-" + re.sub(' +', "-", ptype) + "-" + re.sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
+    imgname = sub('-+', "-", sub('[_/ ]+', "-", meta['title'])) + "-" + sub(' +', "-", ptype) + "-" + sub(' +', "-", meta['author'][0][0]) + "." + namef(imagelink).split('.')[-1]
     image = imscrap(dfile, imagedir, imgname, imagelink, overwrite)
     meta['cover'] = image
     meta['link'] = os.path.join(link, "raw/master", filepath)
     data = postmaker(meta, blogdir)
-    dname = data[0][11:]
-    dwritefile = os.path.join(postdir, data[0])
-    while os.path.isfile(dwritefile) == False:
-        dwrite =  open(dwritefile, 'w')
+    dname = '\d\d\d\d\-\d\d-\d\d' + data[0][10:]
+    for p in posts:
+        if search(dname, p):
+            os.remove(p)
+    with open(os.path.join(postdir, data[0]), 'w') as dwrite:
         dwrite.truncate()
         for line in data[1:]:
             dwrite.write(line + "\n")
-        dwrite.close()
-    tposts = []
-    for tp in posts:
-        if tp.split("/")[-1][11:] == dname:
-            tposts.append(tp)
-    tposts = sorted(tposts)
-    if len(tposts) > 1:
-        for tp in tposts[:-1]:
-            os.remove(tp)
 
-def mapmaker(path, outdir, overwrite, ps):
+def postgen(path, outdir, overwrite=False, ps=8):
     """
     Get data of a whole repo.
     """
+    stime = time()
+    autgen(path, outdir)
     imagedir = os.path.join(outdir, "images")
     authorfile = os.path.join(outdir, "author")
     postdir = os.path.join(outdir, "_posts")
@@ -383,22 +362,18 @@ def mapmaker(path, outdir, overwrite, ps):
         else:
             link = metadata.replace('git@github.com:', 'https://github.com/').replace('.git', '')
     dfiles = []
+    
     for p, subdirs, files in os.walk(path):
         for f in [f for f in files if f.endswith(".epub")]:
             dfiles.append(os.path.join(p, f))
+
     posts = []
     for p, subdirs, files in os.walk(postdir):
         for f in [f for f in files if f.endswith(".markdown")]:
             posts.append(os.path.join(p, f))
-    partial_file_linker = partial(file_linker, path=path, blogdir=outdir, postdir=postdir, posts=posts, link=link, imagedir=imagedir, overwrite=overwrite)
-    with Pool(processes=ps) as pool:
-        pool.map(partial_file_linker, dfiles)
-    print(len(dfiles))
-
-def postgen(path, blogdir, overwrite=False, ps=8):
-    """
-    Viola! Do everything!
-    """
-    autgen(path, blogdir)
-    mapmaker(path, blogdir, overwrite, ps)
+    partial_printer = partial(printer, path=path, blogdir=outdir, postdir=postdir, posts=posts, link=link, imagedir=imagedir, overwrite=overwrite)
     
+    with Pool(processes=ps) as pool:
+        pool.map(partial_printer, dfiles)
+                
+    print("Finished in: %s seconds "  % (time() - stime))
