@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
-import subprocess
-import xmltodict
+import os, subprocess, xmltodict, json, argparse
 from re import sub, search
-import json
 from zipfile import ZipFile
 from PIL import Image
 from multiprocessing import Pool
@@ -337,7 +334,10 @@ def printer(dfile, path, blogdir, postdir, posts, link, imagedir, overwrite):
     dname = '\d\d\d\d\-\d\d-\d\d' + data[0][10:]
     for p in posts:
         if search(dname, p):
-            os.remove(p)
+            try:
+                os.remove(p)
+            except:
+                pass
     with open(os.path.join(postdir, data[0]), 'w') as dwrite:
         dwrite.truncate()
         for line in data[1:]:
@@ -376,3 +376,15 @@ def postgen(path, outdir, overwrite=False, ps=8):
         pool.map(partial_printer, dfiles)
                 
     print("Finished in: %s seconds "  % (time() - stime))
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("datadir", help="Your book repository")
+    parser.add_argument("blogdir", help="Your blog repository")
+    parser.add_argument("-o", "--overwrite", help="Overwrite images")
+    parser.add_argument("-t", "--thread", help="Process thread. Default is 8.", type=int, default=8)
+    args = parser.parse_args()
+    if args.overwrite:
+        postgen(args.datadir, args.blogdir, overwrite=True, ps=args.thread)
+    else:
+        postgen(args.datadir, args.blogdir, overwrite=False, ps=args.thread)
